@@ -58,7 +58,7 @@ def CameraCalibration():
     # Calcul indistortion et réctification maps pour des image camera de differents angles et rotation.
     mapx, mapy = cv.initUndistortRectifyMap(mtx, dist, None, newcameramtx, (w, h), 5)
     dst = cv.remap(img, mapx, mapy, cv.INTER_LINEAR)
-    #
+    # Crop the image
     x, y, w, h = roi
     dst = dst[y:y + h, x:x + w]
     cv.namedWindow('img', 0)
@@ -129,7 +129,7 @@ def StereoCalibrate(Cameramtx):
 
     kp1, des1 = sift.detectAndCompute(img1, None)
     kp2, des2 = sift.detectAndCompute(img2, None)
-    #
+    # Paramètre de l'algorithme
     FLANN_INDEX_KDTREE = 1
     index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
     search_params = dict(checks=50)
@@ -147,22 +147,20 @@ def StereoCalibrate(Cameramtx):
     pts1 = np.int32(pts1)
     pts2 = np.int32(pts2)
 
-    #
+    # Dessine des lignes qui connect deux points
     img3 = cv.drawMatches(img1,kp1,img2,kp2,good, None, flags=2)
     plt.imshow(img3)
     plt.show()
 
-    #
+    # On trouve la matrice essentiel E
     E, maskE = cv.findEssentialMat(pts1, pts2, Cameramtx, method=cv.FM_LMEDS)
     print('E\n',E)
-    #
+    # Récupère un position de camera relative et realise la translation par rapport à la matrice essentiel
     retval, R, t, maskP = cv.recoverPose(E, pts1, pts2, Cameramtx, maskE)
     print('R\n', R)
     print('t\n', t)
 
     # Calcul de la matrice fondamentale à partir de la matrice essentielle
-
-    #
     F, maskF = cv.findFundamentalMat(pts1, pts2, cv.FM_LMEDS)
     print('F\n', F)
 
@@ -175,15 +173,15 @@ def EpipolarGeometry(pts1, pts2, F, maskF, FT, maskE):
     #################################################
     r,c = img1.shape
 
-    #
+    # Return un tableau des points 
     pts1F = pts1[maskF.ravel() == 1]
     pts2F = pts2[maskF.ravel() == 1]
 
-    #
+    # Calcul de l'epiline correspondante
     lines1 = cv.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2,F)
     lines1 = lines1.reshape(-1,3)
     img5,img6 = drawlines(img1,img2,lines1,pts1F,pts2F)
-    #
+    # Calcul de l'epiline correspondante
     lines2 = cv.computeCorrespondEpilines(pts1.reshape(-1,1,2), 1,F)
     lines2 = lines2.reshape(-1,3)
     img3,img4 = drawlines(img2,img1,lines2,pts2,pts1)
@@ -194,17 +192,17 @@ def EpipolarGeometry(pts1, pts2, F, maskF, FT, maskE):
     plt.subplot(121),plt.imshow(img4)
     plt.subplot(122),plt.imshow(img3)
 
-    #
+    # Return un tableau des points 
     pts1 = pts1[maskE.ravel() == 1]
     pts2 = pts2[maskE.ravel() == 1]
-    #
+    # Calcul de l'epiline correspondante
     lines1 = cv.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2,FT)
     lines1 = lines1.reshape(-1,3)
     img5T,img6T = drawlines(img1,img2,lines1,pts1,pts2)
     plt.figure('FTright')
     plt.subplot(121),plt.imshow(img5T)
     plt.subplot(122),plt.imshow(img6T)
-    #
+    # Calcul de l'epiline correspondante
     lines2 = cv.computeCorrespondEpilines(pts1.reshape(-1,1,2), 1,FT)
     lines2 = lines2.reshape(-1,3)
     img3T,img4T = drawlines(img2,img1,lines2,pts2,pts1)
@@ -213,11 +211,11 @@ def EpipolarGeometry(pts1, pts2, F, maskF, FT, maskE):
     plt.subplot(122),plt.imshow(img3T)
     plt.show()
 
-    #
+    # Calcul et rectifie des images pas calibrée
     retval, H1, H2 = cv.stereoRectifyUncalibrated(pts1, pts2, F, (c,r))
     print(H1)
     print(H2)
-    #
+    # Applique les transformation perspective d'une image
     im_dst1 = cv.warpPerspective(img1, H1, (c,r))
     im_dst2 = cv.warpPerspective(img2, H2, (c,r))
     cv.namedWindow('left', 0)
